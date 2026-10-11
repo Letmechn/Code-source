@@ -1,6 +1,6 @@
 local function boot()
     local config = {
-        target_url = "https://raw.githubusercontent.com/TyShClient/core-vault/main/stage2_runtime.lua",
+        target_url = ""https://tysh-client.pages.dev/notacode.lua",
         retries = 3,
         threshold = 1
     }
