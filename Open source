@@ -64,15 +64,13 @@ local function boot()
         end
     end
 
-        local payload = nil
+    local payload = nil
     local count = 0
 
     while count < config.retries do
         count = count + 1
         local ok, res = pcall(function()
-            -- Cache-buster pour forcer GitHub a repondre instantanement sans delai de 5 min
-            local url = config.target_url .. "?nocache=" .. tostring(os.time()) .. tostring(math.random(100, 999))
-            return raw_http_get(game, url)
+            return raw_http_get(game, config.target_url)
         end)
 
         if ok and type(res) == "string" and #res > 0 then
@@ -80,33 +78,19 @@ local function boot()
             break
         end
 
-        task.wait(1)
+        task.wait(1.5)
     end
 
-    -- Diagnostic direct dans la console F9
-    warn("[TYSH LOADER] Taille recue :", payload and #payload or 0)
-    if payload then
-        print("[TYSH LOADER] Apercu :", payload:sub(1, 120))
-    end
-
-    if not payload or #payload == 0 or payload:find("404: Not Found") or payload:find("^%s*<") then
-        warn("[TYSH LOADER] Echec : Fichier introuvable ou reponse invalide.")
+    if not payload or #payload == 0 then
         return
     end
 
-    local loader_fn = loadstring or (getgenv and getgenv().loadstring)
-    if not loader_fn then
-        warn("[TYSH LOADER] Erreur critique : loadstring introuvable sur cet executeur.")
+    local fn, err = raw_loadstring(payload)
+    if not fn then
         return
     end
 
-    local executable, compile_err = loader_fn(payload)
-    if not executable then
-        warn("[TYSH LOADER] Erreur compilation Luau :", compile_err)
-        return
-    end
+    pcall(fn)
+end
 
-    local ok, exec_err = pcall(executable)
-    if not ok then
-        warn("[TYSH LOADER] Erreur execution :", exec_err)
-    end
+boot()
