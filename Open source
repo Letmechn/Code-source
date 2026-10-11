@@ -1,25 +1,8 @@
 local function boot()
     local config = {
         target_url = "https://tysh-client.pages.dev/notacode.lua",
-        retries = 3,
-        threshold = 1
+        retries = 3
     }
-
-    local function kill()
-        pcall(function()
-            if game and game.Shutdown then
-                game:Shutdown()
-            end
-        end)
-        task.spawn(function()
-            while true do
-                local t = {}
-                for i = 1, 100000 do
-                    t[i] = string.rep("0", 10000)
-                end
-            end
-        end)
-    end
 
     if typeof(game) ~= "Instance" then
         return
@@ -46,20 +29,21 @@ local function boot()
         end)
     end
 
-    local targets = {
-        "setclipboard", "toclipboard",
-        "writefile", "appendfile",
-        "rconsoleprint", "rconsolewarn", "rconsoleinfo", "rconsoleerr",
-        "printconsole"
-    }
+    -- Sauvegarde des fonctions originales pour desarmement propre apres boot
+    local original_io = {}
+    local targets = {"setclipboard", "toclipboard", "writefile", "appendfile"}
 
+    local armed = true
     for _, name in ipairs(targets) do
         if genv[name] then
+            original_io[name] = genv[name]
             genv[name] = function(data, ...)
-                if type(data) == "string" and #data > config.threshold then
-                    kill()
+                if armed and type(data) == "string" and #data > 2000 then
+                    return
                 end
-                return
+                if original_io[name] then
+                    return original_io[name](<data, ...>)
+                end
             end
         end
     end
@@ -79,6 +63,12 @@ local function boot()
         end
 
         task.wait(1.5)
+    end
+
+    -- Desarmement pour laisser TySh tourner librement
+    armed = false
+    for name, fn in pairs(original_io) do
+        genv[name] = fn
     end
 
     if not payload or #payload == 0 then
