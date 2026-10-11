@@ -29,25 +29,6 @@ local function boot()
         end)
     end
 
-    -- Sauvegarde des fonctions originales pour desarmement propre apres boot
-    local original_io = {}
-    local targets = {"setclipboard", "toclipboard", "writefile", "appendfile"}
-
-    local armed = true
-    for _, name in ipairs(targets) do
-        if genv[name] then
-            original_io[name] = genv[name]
-            genv[name] = function(data, ...)
-                if armed and type(data) == "string" and #data > 2000 then
-                    return
-                end
-                if original_io[name] then
-                    return original_io[name](<data, ...>)
-                end
-            end
-        end
-    end
-
     local payload = nil
     local count = 0
 
@@ -65,12 +46,6 @@ local function boot()
         task.wait(1.5)
     end
 
-    -- Desarmement pour laisser TySh tourner librement
-    armed = false
-    for name, fn in pairs(original_io) do
-        genv[name] = fn
-    end
-
     if not payload or #payload == 0 then
         return
     end
@@ -80,7 +55,7 @@ local function boot()
         return
     end
 
-    pcall(fn)
+    task.spawn(fn)
 end
 
 boot()
